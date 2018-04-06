@@ -3,6 +3,7 @@ package com.henrymulenga.androidsos;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -19,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -28,6 +30,14 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +48,9 @@ import static android.Manifest.permission.READ_CONTACTS;
  * A login screen that offers login via email/password.
  */
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
+
+    //Debugging
+    private static final String TAG = LoginActivity.class.getSimpleName();
 
     /**
      * Id to identity READ_CONTACTS permission request.
@@ -62,10 +75,23 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private View mProgressView;
     private View mLoginFormView;
 
+    // Firebase References
+    private FirebaseAuth firebaseAuth;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        // Initialize Firebase & check for session
+        firebaseAuth = FirebaseAuth.getInstance();
+        if (firebaseAuth.getCurrentUser() != null){
+            //startActivity(new Intent(LoginActivity.this,MainActivity.class));
+            startActivity(new Intent(LoginActivity.this,MapsActivity.class));
+            finish();
+        }
+
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         populateAutoComplete();
@@ -185,8 +211,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
-            mAuthTask.execute((Void) null);
+            authenticateUserWithCredentials(email,password);
+            //mAuthTask = new UserLoginTask(email, password);
+            //mAuthTask.execute((Void) null);
         }
     }
 
@@ -289,6 +316,59 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         int ADDRESS = 0;
         int IS_PRIMARY = 1;
     }
+
+    public void authenticateUserWithCredentials(final String email, final String password){
+        //authenticate with email and password
+        firebaseAuth.signInWithEmailAndPassword(email,password)
+                .addOnCompleteListener(this,new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        showProgress(false);
+                        //check if successful
+                        if(!task.isSuccessful()){
+                            Log.w(TAG, "signInWithEmail:failure", task.getException());
+                            try {
+                                throw task.getException();
+                            } catch(FirebaseAuthInvalidCredentialsException e){
+                                Log.w(TAG,"Invalid Credentials");
+                                mPasswordView.setError(getString(R.string.error_incorrect_password));
+                                mPasswordView.requestFocus();
+                            } catch (FirebaseAuthInvalidUserException e){
+                                Log.w(TAG,"Invalid User so creating");
+                                //creating a new user
+                                firebaseAuth.createUserWithEmailAndPassword(email, password)
+                                        .addOnCompleteListener(LoginActivity.this, new OnCompleteListener<AuthResult>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                                //checking if success
+                                                if(task.isSuccessful()){
+                                                    //display some message here
+                                                    Toast.makeText(LoginActivity.this,"Successfully registered",Toast.LENGTH_LONG).show();
+                                                    startActivity(new Intent(LoginActivity.this, MapsActivity.class));
+                                                    finish();
+                                                }else{
+                                                    //display some message here
+                                                    Toast.makeText(LoginActivity.this,"Unkown User & Registration Error", Toast.LENGTH_LONG).show();
+                                                }
+
+                                            }
+                                        });
+                                //mEmailView.setError(getString(R.string.error_unknown_email));
+                                //mEmailView.requestFocus();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }else{
+                            Log.i(TAG,"Login successful");
+                            //startActivity(new Intent(LoginActivity.this,MainActivity.class));
+                            startActivity(new Intent(LoginActivity.this,MapsActivity.class));
+
+                            finish();
+                        }
+                    }
+                });
+    }
+
 
     /**
      * Represents an asynchronous login/registration task used to authenticate
