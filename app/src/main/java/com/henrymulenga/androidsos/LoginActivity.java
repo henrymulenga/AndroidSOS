@@ -89,7 +89,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         firebaseAuth = FirebaseAuth.getInstance();
         if (firebaseAuth.getCurrentUser() != null){
             //startActivity(new Intent(LoginActivity.this,MainActivity.class));
-            startActivity(new Intent(LoginActivity.this,MapsActivity.class));
+            startActivity(new Intent(LoginActivity.this,MapActivity.class));
             finish();
         }
 
@@ -225,7 +225,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
-        return password.length() > 4;
+        return password.length() > 5;
     }
 
     /**
@@ -345,7 +345,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                                                 if(task.isSuccessful()){
                                                     //display some message here
                                                     Toast.makeText(LoginActivity.this,"Successfully registered",Toast.LENGTH_LONG).show();
-                                                    startActivity(new Intent(LoginActivity.this, MapsActivity.class));
+                                                    startActivity(new Intent(LoginActivity.this, MapActivity.class));
                                                     finish();
                                                 }else{
                                                     //display some message here
@@ -362,7 +362,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                         }else{
                             Log.i(TAG,"Login successful");
                             //startActivity(new Intent(LoginActivity.this,MainActivity.class));
-                            startActivity(new Intent(LoginActivity.this,MapsActivity.class));
+                            startActivity(new Intent(LoginActivity.this,MapActivity.class));
 
                             finish();
                         }

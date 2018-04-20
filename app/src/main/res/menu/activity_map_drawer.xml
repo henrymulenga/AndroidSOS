@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_map"
+            android:title="My Location" />
+        <item
+            android:id="@+id/nav_user_info"
+            android:title="My Info" />
+        <item
+            android:id="@+id/nav_gallery"
+            android:title="Medical Info" />
+        <item
+            android:id="@+id/nav_slideshow"
+            android:title="Emergency Contacts" />
+        <item
+            android:id="@+id/nav_manage"
+            android:title="Hospitals" />
+        <item
+            android:id="@+id/nav_share"
+            android:title="Useful Numbers" />
+        <item
+            android:id="@+id/nav_exit"
+            android:title="Exit App" />
+    </group>
+
+</menu>
