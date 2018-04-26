@@ -1,7 +1,7 @@
 package com.henrymulenga.androidsos.models;
 
 public class Hospital {
-    private String hospitalId;
+    private Integer hospitalId;
     private String name;
     private String address;
     public double latitude;
@@ -10,11 +10,11 @@ public class Hospital {
     public Hospital() {
     }
 
-    public String getHospitalId() {
+    public Integer getHospitalId() {
         return hospitalId;
     }
 
-    public void setHospitalId(String hospitalId) {
+    public void setHospitalId(Integer hospitalId) {
         this.hospitalId = hospitalId;
     }
 

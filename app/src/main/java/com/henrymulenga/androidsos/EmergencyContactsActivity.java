@@ -14,7 +14,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -27,44 +26,41 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.henrymulenga.androidsos.models.EmergencyContact;
 import com.henrymulenga.androidsos.models.User;
 import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class RegistrationActivity extends AppCompatActivity
+public class EmergencyContactsActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     // Debugging TAG for Log
-    private static final String TAG = RegistrationActivity.class.getSimpleName();
+    private static final String TAG = EmergencyContactsActivity.class.getSimpleName();
 
     // UI references
-    private Spinner spinner;
     private View mUserInfoView;
     private Button btnSaveUserInfo;
-    private EditText etFirstName, etLastName,etEmail, etPhone, etAge;
+    private EditText etFirstName, etLastName,etEmail, etPhone;
 
     //Firebase
     private FirebaseAuth auth;
     private FirebaseAuth.AuthStateListener authListener;
     private FirebaseUser firebaseUser;
     private FirebaseDatabase mFirebaseInstance;
-    private DatabaseReference dbUserInfo;
+    private DatabaseReference dbEmergencyContactInfo;
     FirebaseDataUtilities firebaseDataUtilities = new FirebaseDataUtilities();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_registration);
+        setContentView(R.layout.activity_emergency_contacts);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         checkFirebaseConnection();
-        //firebaseAuth = FirebaseAuth.getInstance();
-        //System.out.println(firebaseAuth.getCurrentUser().getEmail());
-
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -78,29 +74,16 @@ public class RegistrationActivity extends AppCompatActivity
         TextView txtUserEmail = (TextView) navigationView.getHeaderView(0).findViewById(R.id.textViewUserEmail);
         txtUserEmail.setText(firebaseUser.getEmail());
 
-        spinner = (Spinner) findViewById(R.id.spinner_gender);
-        // Create an ArrayAdapter using the string array and a default spinner
-        ArrayAdapter<CharSequence> staticAdapter = ArrayAdapter
-                .createFromResource(this, R.array.gender_array,
-                        android.R.layout.simple_spinner_item);
-        // Specify the layout to use when the list of choices appears
-        staticAdapter
-                .setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-        // Apply the adapter to the spinner
-        spinner.setAdapter(staticAdapter);
-
         etFirstName = (EditText) findViewById(R.id.text_firstname);
         etLastName = (EditText) findViewById(R.id.text_lastname);
         etEmail = (EditText) findViewById(R.id.text_email);
         etPhone = (EditText) findViewById(R.id.text_phone_number);
-        etAge = (EditText) findViewById(R.id.text_age);
 
-        btnSaveUserInfo = (Button) findViewById(R.id.button_save_user_info);
+        btnSaveUserInfo = (Button) findViewById(R.id.button_save_emergency_info);
         btnSaveUserInfo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                updateUserInfo();
+                updateEmergencyContactInfo();
             }
         });
 
@@ -147,41 +130,29 @@ public class RegistrationActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_map) {
-            startActivity(new Intent(RegistrationActivity.this,MapActivity.class));
+            startActivity(new Intent(EmergencyContactsActivity.this,MapActivity.class));
             finish();
         } else if (id == R.id.nav_user_info) {
-            //do nothing
-
+            startActivity(new Intent(EmergencyContactsActivity.this,RegistrationActivity.class));
+            finish();
         } else if (id == R.id.nav_medical) {
-            startActivity(new Intent(RegistrationActivity.this,MedicalInfoActivity.class));
-            finish();
-        } else if (id == R.id.nav_emergency) {
-            startActivity(new Intent(RegistrationActivity.this,EmergencyContactsActivity.class));
-            finish();
+
+        }else if (id == R.id.nav_emergency) {
+            //do nothing
         } else if (id == R.id.nav_hospitals) {
-            startActivity(new Intent(RegistrationActivity.this,HospitalActivity.class));
-            finish();
+
         } else if (id == R.id.nav_useful) {
 
         } else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity
-            startActivity(new Intent(RegistrationActivity.this, LoginActivity.class));
+            startActivity(new Intent(EmergencyContactsActivity.this, LoginActivity.class));
             finish();
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
-    }
-
-    /**
-     * Attempts to save the firebaseUser details specified on the form.
-     * If there are form errors (invalid email, missing fields, etc.), the
-     * errors are presented and no actual save attempt is made.
-     */
-    private void attemptSaveUserDetails() {
-
     }
 
     private void checkFirebaseConnection(){
@@ -198,7 +169,7 @@ public class RegistrationActivity extends AppCompatActivity
                 if (user == null) {
                     // firebaseUser auth state is changed - firebaseUser is null
                     // launch login activity
-                    startActivity(new Intent(RegistrationActivity.this, LoginActivity.class));
+                    startActivity(new Intent(EmergencyContactsActivity.this, LoginActivity.class));
                     finish();
                 }
             }
@@ -211,16 +182,14 @@ public class RegistrationActivity extends AppCompatActivity
         //load the required database
         mFirebaseInstance = firebaseDataUtilities.getDatabase();
 
-        dbUserInfo = mFirebaseInstance.getReference("users/" + firebaseUser.getUid());
-        dbUserInfo.keepSynced(true);
+        dbEmergencyContactInfo = mFirebaseInstance.getReference("users-emergency-contacts/" + firebaseUser.getUid());
+        dbEmergencyContactInfo.keepSynced(true);
 
         //listeners
-        dbUserInfo.addValueEventListener(new ValueEventListener() {
+        dbEmergencyContactInfo.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.v(TAG, "dbUserInfo:onDataChange: ");
-                //clear updated devices
-                //updatedUserInfo = new ArrayList<User>();
+                Log.v(TAG, "dbEmergencyContactInfo:onDataChange: ");
 
                 for (DataSnapshot snapshot: dataSnapshot.getChildren()){
 
@@ -232,19 +201,13 @@ public class RegistrationActivity extends AppCompatActivity
                             //update the text fields
                             etFirstName.setText(user.getFirstName());
                             etLastName.setText(user.getFirstName());
-                            etAge.setText(String.valueOf(user.getAge()));
                             etEmail.setText(user.getEmailAddress());
                             etPhone.setText(user.getPhoneNumber());
-                            spinner.setSelection(getIndex(spinner, user.getGender()));
                             etFirstName.setText(user.getFirstName());
                         }
                     }
 
-
-                    //updatedUserDevices.add(firebaseUser);
                 }
-
-                //System.out.println("User Devices Size : " +updatedUserDevices.size()  );
             }
 
             @Override
@@ -254,19 +217,8 @@ public class RegistrationActivity extends AppCompatActivity
         });
     }
 
-    //to get the spinner set to correct gender
-    private int getIndex(Spinner spinner, String myString){
-        for (int i=0;i<spinner.getCount();i++){
-            if (spinner.getItemAtPosition(i).toString().equalsIgnoreCase(myString)){
-                return i;
-            }
-        }
 
-        return 0;
-    }
-
-
-    private void updateUserInfo(){
+    private void updateEmergencyContactInfo(){
         // Reset errors.
         etEmail.setError(null);
 
@@ -275,7 +227,6 @@ public class RegistrationActivity extends AppCompatActivity
         String lastName = etLastName.getText().toString();
         String eMail = etEmail.getText().toString();
         String phone = etPhone.getText().toString();
-        int age = Integer.parseInt(etAge.getText().toString());
 
         boolean cancel = false;
         View focusView = null;
@@ -296,30 +247,24 @@ public class RegistrationActivity extends AppCompatActivity
             // form field with an error.
             focusView.requestFocus();
         } else {
-            // Show a progress spinner, and kick off a background task to
-            // perform the firebaseUser login attempt.
-            //showProgress(true);
 
-            //trashedProduct.setFirebaseKey(key);
-            //create firebaseUser
-            User user = new User();
-            user.setUserId(firebaseUser.getUid());
-            user.setFirstName(firstName);
-            user.setLastName(lastName);
-            user.setPhoneNumber(phone);
-            user.setEmailAddress(eMail);
-            user.setAge(age);
-            user.setGender(spinner.getSelectedItem().toString());
-            System.out.println("Saving " + user);
+            EmergencyContact emergencyContact = new EmergencyContact();
+            //emergencyContact.setUserId(firebaseUser.getUid());
+            emergencyContact.setFirstName(firstName);
+            emergencyContact.setLastName(lastName);
+            emergencyContact.setPhoneNumber(phone);
+            emergencyContact.setEmailAddress(eMail);
+            emergencyContact.setUserId(firebaseUser.getUid());
+            System.out.println("Saving " + emergencyContact);
 
-            String key = dbUserInfo.child(firebaseUser.getUid()).push().getKey();
-            //dbUserInfo.setValue(user);
-            Map<String, Object> postValues = user.toMap();
+            String key = dbEmergencyContactInfo.child(firebaseUser.getUid()).push().getKey();
+
+            Map<String, Object> postValues = emergencyContact.toMap();
             Map<String, Object> childUpdates = new HashMap<>();
             childUpdates.put(key, postValues);
-            //dbUserInfo.updateChildren(childUpdates);
-            dbUserInfo.setValue(childUpdates);
-            //Log.v(TAG, trashedProduct.getGtin() + " added to Cart");
+
+            dbEmergencyContactInfo.setValue(childUpdates);
+
         }
 
     }

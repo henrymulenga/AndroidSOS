@@ -1,13 +1,16 @@
 package com.henrymulenga.androidsos;
 
+import android.Manifest;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
@@ -28,20 +31,33 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.henrymulenga.androidsos.models.Hospital;
 import com.henrymulenga.androidsos.utilities.CurrentLocation;
+import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 import com.henrymulenga.androidsos.utilities.OnConnectedListener;
 import com.henrymulenga.androidsos.utilities.OnLocationChangedListener;
 import com.kishan.askpermission.AskPermission;
 import com.kishan.askpermission.PermissionCallback;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Created by Henry Mulenga
  *
- * This class shows a Google map of the location and the user position relative to medical facilities.
+ * This class shows a Google map of the location and the firebaseUser position relative to medical facilities.
  *
  * Loosely based on the works of Shane Conder & Lauren Darcey on Android SDK Augmented Reality: Camera & Sensor Setup
  * Accessed at https://code.tutsplus.com/tutorials/android-sdk-augmented-reality-camera-sensor-setup--mobile-7873
@@ -83,7 +99,16 @@ public class MapActivity extends AppCompatActivity
     // Firebase
     private FirebaseAuth auth;
     private FirebaseAuth.AuthStateListener authListener;
-    private FirebaseUser user;
+    private FirebaseUser firebaseUser;
+    private FirebaseDatabase mFirebaseInstance;
+    private DatabaseReference dbHospitals;
+    FirebaseDataUtilities firebaseDataUtilities = new FirebaseDataUtilities();
+
+    //Hospitals
+    private List<Hospital> locations = new ArrayList<Hospital>();
+    private List<Hospital> updatedLocations = new ArrayList<Hospital>();
+
+    private BroadcastReceiver sentStatusReceiver, deliveredStatusReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,7 +140,7 @@ public class MapActivity extends AppCompatActivity
 
         if (permissionCheckFineLocation == -1) {
             new AskPermission.Builder(this)
-                    .setPermissions(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    .setPermissions(android.Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS)
                     .setCallback(this)
                     .request(REQUEST_PERMISSIONS);
         }
@@ -135,9 +160,19 @@ public class MapActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                /*Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();*/
 
+                //send SMS
+                String message = "Help me.";
+                SmsManager sms = SmsManager.getDefault();
+                // if message length is too long messages are divided
+                List<String> messages = sms.divideMessage(message);
+                for (String msg : messages) {
+
+                    PendingIntent sentIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_SENT"), 0);
+                    PendingIntent deliveredIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_DELIVERED"), 0);
+                    sms.sendTextMessage("+260965789036", null, msg, sentIntent, deliveredIntent);
+
+                }
             }
         });
 
@@ -155,8 +190,9 @@ public class MapActivity extends AppCompatActivity
         //txtUserEmail.setText(firebaseAuth.getCurrentUser().getEmail());
 
         TextView txtUserEmail = (TextView) navigationView.getHeaderView(0).findViewById(R.id.textViewUserEmail);
-        txtUserEmail.setText(user.getEmail());
+        txtUserEmail.setText(firebaseUser.getEmail());
 
+        getFirebaseDatabases();
     }
 
     /**
@@ -164,8 +200,8 @@ public class MapActivity extends AppCompatActivity
      * This callback is triggered when the map is ready to be used.
      * This is where we can add markers or lines, add listeners or move the camera. In this case,
      * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
+     * If Google Play services is not installed on the device, the firebaseUser will be prompted to install
+     * it inside the SupportMapFragment. This method will only be triggered once the firebaseUser has
      * installed Google Play services and returned to the app.
      */
     @Override
@@ -189,7 +225,7 @@ public class MapActivity extends AppCompatActivity
     }
 
     /**
-     * Updates the map's UI settings based on whether the user has granted location permission.
+     * Updates the map's UI settings based on whether the firebaseUser has granted location permission.
      */
     private void updateLocationUI() {
         Log.d(TAG, "updateLocationUI");
@@ -335,6 +371,7 @@ public class MapActivity extends AppCompatActivity
 
         // store it off for use when we need it
         mLastKnownLocation = location;
+        refreshMap();
         //lastLatitude = location.getLatitude();
         //lastLongitude = location.getLongitude();
         //locationData = "["+String.valueOf(lastLatitude)+","+String.valueOf(lastLongitude)+"]";
@@ -347,13 +384,13 @@ public class MapActivity extends AppCompatActivity
             }
             //clear flag
             prefManager.setSettingsChangedStatus(false);
-            //upload user changed settings
+            //upload firebaseUser changed settings
             uploadUserInteraction("Change of Parameters");
         }*/
-        //user POI location awareness monitoring
+        //firebaseUser POI location awareness monitoring
         //proximityCheck();
 
-        //upload user location
+        //upload firebaseUser location
         //uploadUserLocation();
     }
 
@@ -364,17 +401,17 @@ public class MapActivity extends AppCompatActivity
 
     private void checkFirebaseConnection(){
         Log.v(TAG,"checkFirebaseConnection");
-        //get firebase authorization instance and current user
+        //get firebase authorization instance and current firebaseUser
         auth = FirebaseAuth.getInstance();
-        user = FirebaseAuth.getInstance().getCurrentUser();
+        firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
 
-        //verify if user is still active
+        //verify if firebaseUser is still active
         authListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
                 if (user == null) {
-                    // user auth state is changed - user is null
+                    // firebaseUser auth state is changed - firebaseUser is null
                     // launch login activity
                     startActivity(new Intent(MapActivity.this, LoginActivity.class));
                     finish();
@@ -426,13 +463,18 @@ public class MapActivity extends AppCompatActivity
         } else if (id == R.id.nav_user_info) {
             startActivity(new Intent(MapActivity.this,RegistrationActivity.class));
             finish();
-        } else if (id == R.id.nav_slideshow) {
+        } else if (id == R.id.nav_medical) {
+            startActivity(new Intent(MapActivity.this,MedicalInfoActivity.class));
+            finish();
+        } else if (id == R.id.nav_emergency) {
+            startActivity(new Intent(MapActivity.this,EmergencyContactsActivity.class));
+            finish();
+        } else if (id == R.id.nav_hospitals) {
+            startActivity(new Intent(MapActivity.this,HospitalActivity.class));
+            finish();
+        } else if (id == R.id.nav_useful) {
 
-        } else if (id == R.id.nav_manage) {
-
-        } else if (id == R.id.nav_share) {
-
-        } else if (id == R.id.nav_exit) {
+        }else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity
             startActivity(new Intent(MapActivity.this, LoginActivity.class));
@@ -442,5 +484,73 @@ public class MapActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void getFirebaseDatabases(){
+        Log.d(TAG, "getFirebaseDatabases() called");
+
+        //load the required database
+        mFirebaseInstance = firebaseDataUtilities.getDatabase();
+
+        dbHospitals = mFirebaseInstance.getReference("hospitals");
+        dbHospitals.keepSynced(true);
+
+        dbHospitals.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.v(TAG,"checkFirebaseConnection.onDataChange");
+                //clear updated
+                updatedLocations = new ArrayList<Hospital>();
+                for (DataSnapshot snapshot: dataSnapshot.getChildren()){
+                    Hospital location = snapshot.getValue(Hospital.class);
+                    System.out.println(location);
+                    updatedLocations.add(location);
+                }
+                initializeDataBind(updatedLocations);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    public void initializeDataBind(List<Hospital> data){
+        //deepcopy
+        locations = new ArrayList<>();
+        locations = (ArrayList<Hospital>) data;
+        //ApplicationDataStore.getInstance().setLocations(locations);
+        refreshMap();
+    }
+
+    public void refreshMap(){
+        System.out.println("MapActivity.refreshMap for " + locations.size() + " hospitals");
+        // Clearing previous markers
+        mMap.clear();
+        //drawing firebase locations on map
+        for (Hospital location : locations) {
+            LatLng marker = new LatLng(location.getLatitude(), location.getLongitude());
+
+            Location markerLocation = new Location("SELF");
+            markerLocation.setLatitude(marker.latitude);
+            markerLocation.setLongitude(marker.longitude);
+
+            float distanceTo = 0;
+            if (mLastKnownLocation != null){
+                //System.out.println("mLastKnownLocation location");
+                //System.out.println(mLastKnownLocation.getLatitude());
+                //System.out.println(mLastKnownLocation.getLongitude());
+                distanceTo = mLastKnownLocation.distanceTo(markerLocation);
+            }
+
+            mMap.addMarker(new MarkerOptions()
+                    .position(marker)
+                    .title(location.getName())
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                    //.snippet(location.getLocationAddress()))
+                    .snippet(distanceTo + "m away"))
+                    .setTag(location);
+        }
     }
 }

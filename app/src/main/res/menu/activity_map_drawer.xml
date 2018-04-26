@@ -11,16 +11,16 @@
             android:id="@+id/nav_user_info"
             android:title="My Info" />
         <item
-            android:id="@+id/nav_gallery"
+            android:id="@+id/nav_medical"
             android:title="Medical Info" />
         <item
-            android:id="@+id/nav_slideshow"
+            android:id="@+id/nav_emergency"
             android:title="Emergency Contacts" />
         <item
-            android:id="@+id/nav_manage"
+            android:id="@+id/nav_hospitals"
             android:title="Hospitals" />
         <item
-            android:id="@+id/nav_share"
+            android:id="@+id/nav_useful"
             android:title="Useful Numbers" />
         <item
             android:id="@+id/nav_exit"
