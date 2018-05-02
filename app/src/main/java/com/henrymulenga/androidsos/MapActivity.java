@@ -1,15 +1,20 @@
 package com.henrymulenga.androidsos;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
@@ -43,6 +48,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.henrymulenga.androidsos.models.Hospital;
+import com.henrymulenga.androidsos.models.Incident;
+import com.henrymulenga.androidsos.models.User;
 import com.henrymulenga.androidsos.utilities.CurrentLocation;
 import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 import com.henrymulenga.androidsos.utilities.OnConnectedListener;
@@ -51,6 +58,7 @@ import com.kishan.askpermission.AskPermission;
 import com.kishan.askpermission.PermissionCallback;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +70,10 @@ import java.util.Map;
  * Loosely based on the works of Shane Conder & Lauren Darcey on Android SDK Augmented Reality: Camera & Sensor Setup
  * Accessed at https://code.tutsplus.com/tutorials/android-sdk-augmented-reality-camera-sensor-setup--mobile-7873
  * Accessed on 19/03/2018.
+ *
+ * Loosely based on the works of Kapil on How to send SMS programmatically ? – Android Tutorial
+ * Accessed at https://www.androidtutorialpoint.com/basics/send-sms-programmatically-android-tutorial/
+ * Accessed on 15/04/2018
  */
 
 public class MapActivity extends AppCompatActivity
@@ -101,13 +113,15 @@ public class MapActivity extends AppCompatActivity
     private FirebaseAuth.AuthStateListener authListener;
     private FirebaseUser firebaseUser;
     private FirebaseDatabase mFirebaseInstance;
-    private DatabaseReference dbHospitals;
+    private DatabaseReference dbHospitals,dbEmergencyContactInfo, dbUserIncidents;
     FirebaseDataUtilities firebaseDataUtilities = new FirebaseDataUtilities();
+    private String incidentKey;
+    private String incidentResult;
 
     //Hospitals
     private List<Hospital> locations = new ArrayList<Hospital>();
     private List<Hospital> updatedLocations = new ArrayList<Hospital>();
-
+    private User emergencyContact;
     private BroadcastReceiver sentStatusReceiver, deliveredStatusReceiver;
 
     @Override
@@ -118,16 +132,6 @@ public class MapActivity extends AppCompatActivity
         setSupportActionBar(toolbar);
 
         checkFirebaseConnection();
-        //firebaseAuth = FirebaseAuth.getInstance();
-        //System.out.println(firebaseAuth.getCurrentUser().getEmail());
-
-        // Initialize Firebase & check for session
-        /*firebaseAuth = FirebaseAuth.getInstance();
-        if (firebaseAuth.getCurrentUser() != null){
-            //startActivity(new Intent(LoginActivity.this,MainActivity.class));
-            startActivity(new Intent(MapActivity.this,LoginActivity.class));
-            finish();
-        }*/
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -151,8 +155,6 @@ public class MapActivity extends AppCompatActivity
             mCameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
         }
 
-
-
         // Start GPS
         startGPS();
 
@@ -160,18 +162,74 @@ public class MapActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //creates the sms dialog
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                        MapActivity.this);
+                // set title
+                alertDialogBuilder.setTitle(R.string.app_name);
 
-                //send SMS
-                String message = "Help me.";
-                SmsManager sms = SmsManager.getDefault();
-                // if message length is too long messages are divided
-                List<String> messages = sms.divideMessage(message);
-                for (String msg : messages) {
+                if (emergencyContact != null) {
 
-                    PendingIntent sentIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_SENT"), 0);
-                    PendingIntent deliveredIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_DELIVERED"), 0);
-                    sms.sendTextMessage("+260965789036", null, msg, sentIntent, deliveredIntent);
+                    // set dialog message
+                    alertDialogBuilder
+                            .setMessage("You are about to ask for help from " + emergencyContact.getFirstName() + " " + emergencyContact.getLastName() + ", This will send your location as well.")
+                            .setCancelable(false)
+                            .setPositiveButton("Proceed", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    //send SMS
+                                    String locationUrl = "";
 
+                                        if (mLastKnownLocation != null) {
+                                            locationUrl = "https://www.google.com/maps/search/?api=1&query=" + mLastKnownLocation.getLatitude() + "," + mLastKnownLocation.getLongitude();
+                                        }
+                                        String message = "Help me. I am at \n" + locationUrl + "\n";
+                                        SmsManager sms = SmsManager.getDefault();
+                                        // if message length is too long messages are divided
+                                        List<String> messages = sms.divideMessage(message);
+                                        for (String msg : messages) {
+
+                                            PendingIntent sentIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_SENT"), 0);
+                                            PendingIntent deliveredIntent = PendingIntent.getBroadcast(MapActivity.this, 0, new Intent("SMS_DELIVERED"), 0);
+                                            sms.sendTextMessage(emergencyContact.getPhoneNumber(), null, msg, sentIntent, deliveredIntent);
+
+                                        }
+
+
+                                }
+                            })
+                            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    // if this button is clicked, just close
+                                    // the dialog box and do nothing
+                                    dialog.cancel();
+                                }
+                            });
+
+                    // create alert dialog
+                    AlertDialog alertDialog = alertDialogBuilder.create();
+
+                    // show it
+                    alertDialog.show();
+
+                }else{
+                    // no emergency contact
+                    // set dialog message
+                    alertDialogBuilder
+                            .setMessage("You have no emergency contact registered, please create one. ")
+                            .setCancelable(false)
+                            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    // if this button is clicked, just close
+                                    // the dialog box and do nothing
+                                    dialog.cancel();
+                                }
+                            });
+
+                    // create alert dialog
+                    AlertDialog alertDialog = alertDialogBuilder.create();
+
+                    // show it
+                    alertDialog.show();
                 }
             }
         });
@@ -195,6 +253,101 @@ public class MapActivity extends AppCompatActivity
         getFirebaseDatabases();
     }
 
+    public void onResume() {
+
+        super.onResume();
+
+        //creates the sms dialog
+        final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                MapActivity.this);
+        // set title
+        alertDialogBuilder.setTitle(R.string.app_name);
+
+        sentStatusReceiver = new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                incidentResult = "Msg Sent Unknown Error";
+
+                incidentKey = dbUserIncidents.child(firebaseUser.getUid()).push().getKey();
+
+                Incident incident = new Incident();
+                incident.setLatitude(mLastKnownLocation.getLatitude());
+                incident.setLongitude(mLastKnownLocation.getLongitude());
+                incident.setAccuracy(mLastKnownLocation.getAccuracy());
+                incident.setUserId(firebaseUser.getUid());
+                incident.setIncidentId(incidentKey);
+
+                Map<String, Object> postValues = incident.toMap();
+                Map<String, Object> childUpdates = new HashMap<>();
+                childUpdates.put(incidentKey, postValues);
+
+                dbUserIncidents.setValue(childUpdates);
+
+
+                switch (getResultCode()) {
+                    case Activity.RESULT_OK:
+                        incidentResult = "Message Sent Successfully !!";
+
+                        break;
+                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                        incidentResult = "Generic Failure Error";
+                        break;
+                    case SmsManager.RESULT_ERROR_NO_SERVICE:
+                        incidentResult = "Error : No Service Available";
+                        break;
+                    case SmsManager.RESULT_ERROR_NULL_PDU:
+                        incidentResult = "Error : Null PDU";
+                        break;
+                    case SmsManager.RESULT_ERROR_RADIO_OFF:
+                        incidentResult = "Error : Radio is off";
+                        break;
+                    default:
+                        break;
+                }
+
+            }
+        };
+
+        deliveredStatusReceiver=new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                incidentResult = "Message Not Delivered";
+                switch(getResultCode()) {
+                    case Activity.RESULT_OK:
+                        incidentResult = "Your message was delivered successfully";
+                        //inform user of successful delivery
+
+                        // set dialog message
+                        alertDialogBuilder
+                                .setMessage(incidentResult)
+                                .setCancelable(false)
+                                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int id) {
+                                        // if this button is clicked, just close
+                                        // the dialog box and do nothing
+                                        dialog.cancel();
+                                    }
+                                });
+
+                        // create alert dialog
+                        AlertDialog alertDialog = alertDialogBuilder.create();
+
+                        // show it
+                        alertDialog.show();
+
+                        break;
+                    case Activity.RESULT_CANCELED:
+                        break;
+                }
+
+            }
+        };
+
+        registerReceiver(sentStatusReceiver, new IntentFilter("SMS_SENT"));
+        registerReceiver(deliveredStatusReceiver, new IntentFilter("SMS_DELIVERED"));
+    }
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -217,11 +370,7 @@ public class MapActivity extends AppCompatActivity
         // Getting the current location of the device and setting the position of the map.
         getDeviceLocation();
 
-        // Add a marker in Sydney and move the camera
-        //-15.4309956,28.3049162
-        /*LatLng sydney = new LatLng(-15.431637, 28.313821);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Lusaka"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));*/
+
     }
 
     /**
@@ -242,11 +391,7 @@ public class MapActivity extends AppCompatActivity
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             mLocationPermissionGranted = true;
-        } /*else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
-                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
-        }*/
+        }
 
         if (mLocationPermissionGranted) {
             mMap.setMyLocationEnabled(true);
@@ -267,11 +412,7 @@ public class MapActivity extends AppCompatActivity
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             mLocationPermissionGranted = true;
-        }/* else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
-                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
-        }*/
+        }
         /*
          * Getting the best and most recent location of the device, which may be null in rare
          * cases when a location is not available.
@@ -290,9 +431,7 @@ public class MapActivity extends AppCompatActivity
             // Animating the Cameras movement to position
             CameraUpdate yourLocation = CameraUpdateFactory.newLatLngZoom(mCoordinate, STREET_ZOOM);
             mMap.animateCamera(yourLocation, 5000, null);
-
-            // Looking up POIs
-            //new PoiLookup().execute();
+            ;
 
         } else {
             Log.d(TAG, "Current location is null. Using defaults.");
@@ -372,26 +511,7 @@ public class MapActivity extends AppCompatActivity
         // store it off for use when we need it
         mLastKnownLocation = location;
         refreshMap();
-        //lastLatitude = location.getLatitude();
-        //lastLongitude = location.getLongitude();
-        //locationData = "["+String.valueOf(lastLatitude)+","+String.valueOf(lastLongitude)+"]";
-        //toolbar.setTitle("GPS: "+  String.valueOf(mLastKnownLocation.getAccuracy())+ "meters");
 
-        //check if settings have changed and refresh view
-        /*if (prefManager.isSettingsChangedStatus()){
-            if (mMap != null){
-                refreshMap(mCoordinate);
-            }
-            //clear flag
-            prefManager.setSettingsChangedStatus(false);
-            //upload firebaseUser changed settings
-            uploadUserInteraction("Change of Parameters");
-        }*/
-        //firebaseUser POI location awareness monitoring
-        //proximityCheck();
-
-        //upload firebaseUser location
-        //uploadUserLocation();
     }
 
     @Override
@@ -462,16 +582,16 @@ public class MapActivity extends AppCompatActivity
             //do nothing
         } else if (id == R.id.nav_user_info) {
             startActivity(new Intent(MapActivity.this,RegistrationActivity.class));
-            finish();
+
         } else if (id == R.id.nav_medical) {
             startActivity(new Intent(MapActivity.this,MedicalInfoActivity.class));
-            finish();
+
         } else if (id == R.id.nav_emergency) {
             startActivity(new Intent(MapActivity.this,EmergencyContactsActivity.class));
-            finish();
+
         } else if (id == R.id.nav_hospitals) {
             startActivity(new Intent(MapActivity.this,HospitalActivity.class));
-            finish();
+
         } else if (id == R.id.nav_useful) {
 
         }else if (id == R.id.nav_exit) {
@@ -495,6 +615,12 @@ public class MapActivity extends AppCompatActivity
         dbHospitals = mFirebaseInstance.getReference("hospitals");
         dbHospitals.keepSynced(true);
 
+        dbEmergencyContactInfo = mFirebaseInstance.getReference("users-emergency-contacts/" + firebaseUser.getUid());
+        dbEmergencyContactInfo.keepSynced(true);
+
+        dbUserIncidents = mFirebaseInstance.getReference("users-incidents/" + firebaseUser.getUid());
+        dbUserIncidents.keepSynced(true);
+        //listeners
         dbHospitals.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -514,6 +640,32 @@ public class MapActivity extends AppCompatActivity
 
             }
         });
+
+        dbEmergencyContactInfo.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.v(TAG, "dbEmergencyContactInfo:onDataChange: ");
+
+                for (DataSnapshot snapshot: dataSnapshot.getChildren()){
+
+                    if (snapshot != null){
+                        emergencyContact = snapshot.getValue(User.class);
+
+                        if (emergencyContact != null){
+                            System.out.println(emergencyContact);
+
+                        }
+                    }
+
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
     }
 
     public void initializeDataBind(List<Hospital> data){
@@ -538,9 +690,7 @@ public class MapActivity extends AppCompatActivity
 
             float distanceTo = 0;
             if (mLastKnownLocation != null){
-                //System.out.println("mLastKnownLocation location");
-                //System.out.println(mLastKnownLocation.getLatitude());
-                //System.out.println(mLastKnownLocation.getLongitude());
+
                 distanceTo = mLastKnownLocation.distanceTo(markerLocation);
             }
 
@@ -548,7 +698,6 @@ public class MapActivity extends AppCompatActivity
                     .position(marker)
                     .title(location.getName())
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                    //.snippet(location.getLocationAddress()))
                     .snippet(distanceTo + "m away"))
                     .setTag(location);
         }

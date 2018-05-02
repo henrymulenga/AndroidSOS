@@ -1,5 +1,6 @@
 package com.henrymulenga.androidsos;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -7,19 +8,15 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
+import android.widget.AdapterView;
 import android.widget.ListView;
-import android.widget.Spinner;
-import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -30,13 +27,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.henrymulenga.androidsos.adapters.HospitalListAdapter;
 import com.henrymulenga.androidsos.models.Hospital;
-import com.henrymulenga.androidsos.models.User;
 import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class HospitalActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -57,6 +51,7 @@ public class HospitalActivity extends AppCompatActivity
     private List<Hospital> locations = new ArrayList<Hospital>();
     private List<Hospital> updatedLocations = new ArrayList<Hospital>();
     private ListView listView;
+    private Hospital selectedHospital;
 
 
     @Override
@@ -74,6 +69,60 @@ public class HospitalActivity extends AppCompatActivity
         // initialization of the list
         initializeAdapter(locations);
 
+        //List Listener
+
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                // get the hosptial selected by the user
+                selectedHospital = new Hospital();
+                selectedHospital = locations.get(position);
+
+                //inform user of save
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                        HospitalActivity.this);
+                // set title
+                alertDialogBuilder.setTitle(R.string.app_name);
+                // set dialog message
+                alertDialogBuilder
+                        .setMessage("Would you like to make " + selectedHospital.getName() + " your preferred hospital.")
+                        .setCancelable(false)
+                        .setPositiveButton("Proceed",new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,int id) {
+                                // if this button is clicked, close
+                                // current activity
+                                startActivity(new Intent(HospitalActivity.this,MapActivity.class));
+                                finish();
+                            }
+                        })
+                        .setNegativeButton("Return",new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,int id) {
+                                // if this button is clicked, just close
+                                // the dialog box and do nothing
+                                dialog.cancel();
+                            }
+                        });
+
+                // create alert dialog
+                AlertDialog alertDialog = alertDialogBuilder.create();
+
+                // show it
+                alertDialog.show();
+            }
+        });
+
+
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
+
+        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+
     }
 
     private void initializeAdapter(List<Hospital> data){
@@ -81,7 +130,6 @@ public class HospitalActivity extends AppCompatActivity
         //deepcopy
         locations = new ArrayList<>();
         locations = (ArrayList<Hospital>) data;
-
 
         // reinitialize and set the list adapter
         arrayAdapter = new HospitalListAdapter(getApplicationContext(), locations);
@@ -154,8 +202,8 @@ public class HospitalActivity extends AppCompatActivity
             startActivity(new Intent(HospitalActivity.this,MapActivity.class));
             finish();
         } else if (id == R.id.nav_user_info) {
-            //do nothing
-
+            startActivity(new Intent(HospitalActivity.this,RegistrationActivity.class));
+            finish();
         } else if (id == R.id.nav_medical) {
             startActivity(new Intent(HospitalActivity.this,MedicalInfoActivity.class));
             finish();

@@ -26,28 +26,6 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="30dp"/>
 
-            <RadioGroup
-                android:id="@+id/radioContacts"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/radioContact1"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="1st Contact"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/radioContact2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="2nd Contact" />
-
-            </RadioGroup>
-
-
             <android.support.design.widget.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">

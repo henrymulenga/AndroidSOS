@@ -1,5 +1,6 @@
 package com.henrymulenga.androidsos;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -7,6 +8,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
@@ -14,8 +16,11 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -25,12 +30,13 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.henrymulenga.androidsos.models.EmergencyContact;
+import com.henrymulenga.androidsos.models.Hospital;
 import com.henrymulenga.androidsos.models.MedicalInformation;
-import com.henrymulenga.androidsos.models.User;
 import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MedicalInfoActivity extends AppCompatActivity
@@ -42,16 +48,21 @@ public class MedicalInfoActivity extends AppCompatActivity
     // UI references
     private View mUserInfoView;
     private Button btnSaveMedicalInfo;
-    private EditText etHospitalName, etBloodType, etAllergies;
+    private EditText etAllergies;
+    private Spinner spinnerHospitals, spinnerBloodTypes;
 
     //Firebase
     private FirebaseAuth auth;
     private FirebaseAuth.AuthStateListener authListener;
     private FirebaseUser firebaseUser;
     private FirebaseDatabase mFirebaseInstance;
-    private DatabaseReference dbMedicalInfo;
+    private DatabaseReference dbMedicalInfo, dbHospitals;
     FirebaseDataUtilities firebaseDataUtilities = new FirebaseDataUtilities();
 
+
+    private List<Hospital> locations = new ArrayList<Hospital>();
+    private List<Hospital> updatedLocations = new ArrayList<Hospital>();
+    private MedicalInformation medicalInformation = new MedicalInformation();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,9 +85,22 @@ public class MedicalInfoActivity extends AppCompatActivity
         TextView txtUserEmail = (TextView) navigationView.getHeaderView(0).findViewById(R.id.textViewUserEmail);
         txtUserEmail.setText(firebaseUser.getEmail());
 
-        etHospitalName = (EditText) findViewById(R.id.text_preferred_hospital);
-        etBloodType = (EditText) findViewById(R.id.text_blood_type);
+        /*etHospitalName = (EditText) findViewById(R.id.text_preferred_hospital);
+        etBloodType = (EditText) findViewById(R.id.text_blood_type);*/
+
         etAllergies = (EditText) findViewById(R.id.text_allergies);
+        spinnerHospitals = (Spinner)findViewById(R.id.spinner_hospitals);
+
+        spinnerBloodTypes = (Spinner)findViewById(R.id.spinner_blood_types);
+        // Create an ArrayAdapter using the string array and a default spinner
+        ArrayAdapter<CharSequence> staticAdapter = ArrayAdapter
+                .createFromResource(this, R.array.blood_type_array,
+                        android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        staticAdapter
+                .setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        spinnerBloodTypes.setAdapter(staticAdapter);
 
 
         btnSaveMedicalInfo = (Button) findViewById(R.id.button_save_medical_info);
@@ -88,6 +112,22 @@ public class MedicalInfoActivity extends AppCompatActivity
         });
 
         getFirebaseDatabases();
+
+        initializeHospitalSpinner(locations);
+
+        //set a listener for the hospital selected
+        /*spinnerHospitals.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> arg0, View arg1,
+                                       int arg2, long arg3) {
+                int index = arg0.getSelectedItemPosition();
+                etHospitalName.setText(locations.get(index).getName());
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> arg0) {
+            }
+        });*/
 
     }
 
@@ -187,6 +227,9 @@ public class MedicalInfoActivity extends AppCompatActivity
         dbMedicalInfo = mFirebaseInstance.getReference("users-medical-info/" + firebaseUser.getUid());
         dbMedicalInfo.keepSynced(true);
 
+        dbHospitals = mFirebaseInstance.getReference("hospitals");
+        dbHospitals.keepSynced(true);
+
         //listeners
         dbMedicalInfo.addValueEventListener(new ValueEventListener() {
             @Override
@@ -201,10 +244,10 @@ public class MedicalInfoActivity extends AppCompatActivity
                         if (medicalInformation != null){
                             System.out.println(medicalInformation);
                             //update the text fields
-                            etHospitalName.setText(medicalInformation.getPreferredHospitalName());
-                            etBloodType.setText(medicalInformation.getBloodType());
                             etAllergies.setText(medicalInformation.getAllergies());
-                            etHospitalName.setText(medicalInformation.getPreferredHospitalName());
+                            spinnerHospitals.setSelection(getIndex(spinnerHospitals, medicalInformation.getPreferredHospitalName()));
+                            spinnerBloodTypes.setSelection(getIndex(spinnerBloodTypes, medicalInformation.getBloodType()));
+
                         }
                     }
                 }
@@ -215,16 +258,65 @@ public class MedicalInfoActivity extends AppCompatActivity
 
             }
         });
+
+        dbHospitals.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.v(TAG,"checkFirebaseConnection.onDataChange");
+                //clear updated
+                updatedLocations = new ArrayList<Hospital>();
+                for (DataSnapshot snapshot: dataSnapshot.getChildren()){
+                    Hospital location = snapshot.getValue(Hospital.class);
+                    System.out.println(location);
+                    updatedLocations.add(location);
+                }
+
+                initializeHospitalSpinner(updatedLocations);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
 
+    //to get the spinner set to correct value
+    private int getIndex(Spinner spinner, String myString){
+        for (int i=0;i<spinner.getCount();i++){
+            if (spinner.getItemAtPosition(i).toString().equalsIgnoreCase(myString)){
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    public void initializeHospitalSpinner(List<Hospital> data){
+        //deepcopy
+        locations = new ArrayList<>();
+        locations = (ArrayList<Hospital>) data;
+
+        List<String> list = new ArrayList<String>();
+
+        for (Hospital hospital: locations){
+            list.add(hospital.getName());
+        }
+        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, list);
+        dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerHospitals.setAdapter(dataAdapter);
+
+        spinnerHospitals.setSelection(getIndex(spinnerHospitals, medicalInformation.getPreferredHospitalName()));
+
+
+    }
 
     private void updateMedicalInfo(){
         // Reset errors.
         etAllergies.setError(null);
 
         // Store values at the time of the login attempt.
-        String hospitalName = etHospitalName.getText().toString();
-        String bloodType = etBloodType.getText().toString();
         String allergies = etAllergies.getText().toString();
 
 
@@ -244,10 +336,11 @@ public class MedicalInfoActivity extends AppCompatActivity
             focusView.requestFocus();
         } else {
 
-            MedicalInformation medicalInformation = new MedicalInformation();
-            //medicalInformation.setUserId(firebaseUser.getUid());
-            medicalInformation.setPreferredHospitalName(hospitalName);
-            medicalInformation.setBloodType(bloodType);
+            medicalInformation = new MedicalInformation();
+
+            medicalInformation.setPreferredHospitalName(spinnerHospitals.getSelectedItem().toString());
+            medicalInformation.setBloodType(spinnerBloodTypes.getSelectedItem().toString());
+
             medicalInformation.setAllergies(allergies);
             medicalInformation.setUserId(firebaseUser.getUid());
             System.out.println("Saving " + medicalInformation);
@@ -259,6 +352,39 @@ public class MedicalInfoActivity extends AppCompatActivity
             childUpdates.put(key, postValues);
 
             dbMedicalInfo.setValue(childUpdates);
+
+            //inform user of save
+            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                    this);
+            // set title
+            alertDialogBuilder.setTitle(R.string.app_name);
+            // set dialog message
+            alertDialogBuilder
+                    .setMessage(R.string.dialog_details_updated)
+                    .setCancelable(false)
+                    .setPositiveButton("Proceed",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, close
+                            // current activity
+                            startActivity(new Intent(MedicalInfoActivity.this,MapActivity.class));
+                            finish();
+                        }
+                    })
+                    .setNegativeButton("Return",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, just close
+                            // the dialog box and do nothing
+                            dialog.cancel();
+                        }
+                    });
+
+            // create alert dialog
+            AlertDialog alertDialog = alertDialogBuilder.create();
+
+            // show it
+            alertDialog.show();
+
+
 
         }
 

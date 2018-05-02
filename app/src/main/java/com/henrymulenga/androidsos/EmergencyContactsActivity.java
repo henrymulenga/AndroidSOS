@@ -1,5 +1,6 @@
 package com.henrymulenga.androidsos;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -7,6 +8,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
@@ -200,7 +202,7 @@ public class EmergencyContactsActivity extends AppCompatActivity
                             System.out.println(user);
                             //update the text fields
                             etFirstName.setText(user.getFirstName());
-                            etLastName.setText(user.getFirstName());
+                            etLastName.setText(user.getLastName());
                             etEmail.setText(user.getEmailAddress());
                             etPhone.setText(user.getPhoneNumber());
                             etFirstName.setText(user.getFirstName());
@@ -264,6 +266,37 @@ public class EmergencyContactsActivity extends AppCompatActivity
             childUpdates.put(key, postValues);
 
             dbEmergencyContactInfo.setValue(childUpdates);
+
+            //inform user of save
+            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                    this);
+            // set title
+            alertDialogBuilder.setTitle(R.string.app_name);
+            // set dialog message
+            alertDialogBuilder
+                    .setMessage(R.string.dialog_details_updated)
+                    .setCancelable(false)
+                    .setPositiveButton("Proceed",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, close
+                            // current activity
+                            startActivity(new Intent(EmergencyContactsActivity.this,MapActivity.class));
+                            finish();
+                        }
+                    })
+                    .setNegativeButton("Return",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, just close
+                            // the dialog box and do nothing
+                            dialog.cancel();
+                        }
+                    });
+
+            // create alert dialog
+            AlertDialog alertDialog = alertDialogBuilder.create();
+
+            // show it
+            alertDialog.show();
 
         }
 

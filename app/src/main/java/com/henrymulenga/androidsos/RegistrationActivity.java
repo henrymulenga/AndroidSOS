@@ -1,5 +1,6 @@
 package com.henrymulenga.androidsos;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -7,6 +8,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
@@ -62,9 +64,6 @@ public class RegistrationActivity extends AppCompatActivity
         setSupportActionBar(toolbar);
 
         checkFirebaseConnection();
-        //firebaseAuth = FirebaseAuth.getInstance();
-        //System.out.println(firebaseAuth.getCurrentUser().getEmail());
-
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -175,14 +174,6 @@ public class RegistrationActivity extends AppCompatActivity
         return true;
     }
 
-    /**
-     * Attempts to save the firebaseUser details specified on the form.
-     * If there are form errors (invalid email, missing fields, etc.), the
-     * errors are presented and no actual save attempt is made.
-     */
-    private void attemptSaveUserDetails() {
-
-    }
 
     private void checkFirebaseConnection(){
         Log.v(TAG,"checkFirebaseConnection");
@@ -219,8 +210,6 @@ public class RegistrationActivity extends AppCompatActivity
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 Log.v(TAG, "dbUserInfo:onDataChange: ");
-                //clear updated devices
-                //updatedUserInfo = new ArrayList<User>();
 
                 for (DataSnapshot snapshot: dataSnapshot.getChildren()){
 
@@ -231,7 +220,7 @@ public class RegistrationActivity extends AppCompatActivity
                             System.out.println(user);
                             //update the text fields
                             etFirstName.setText(user.getFirstName());
-                            etLastName.setText(user.getFirstName());
+                            etLastName.setText(user.getLastName());
                             etAge.setText(String.valueOf(user.getAge()));
                             etEmail.setText(user.getEmailAddress());
                             etPhone.setText(user.getPhoneNumber());
@@ -239,12 +228,7 @@ public class RegistrationActivity extends AppCompatActivity
                             etFirstName.setText(user.getFirstName());
                         }
                     }
-
-
-                    //updatedUserDevices.add(firebaseUser);
                 }
-
-                //System.out.println("User Devices Size : " +updatedUserDevices.size()  );
             }
 
             @Override
@@ -317,9 +301,40 @@ public class RegistrationActivity extends AppCompatActivity
             Map<String, Object> postValues = user.toMap();
             Map<String, Object> childUpdates = new HashMap<>();
             childUpdates.put(key, postValues);
-            //dbUserInfo.updateChildren(childUpdates);
+
             dbUserInfo.setValue(childUpdates);
-            //Log.v(TAG, trashedProduct.getGtin() + " added to Cart");
+
+            //inform user of save
+            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                    this);
+            // set title
+            alertDialogBuilder.setTitle(R.string.app_name);
+            // set dialog message
+            alertDialogBuilder
+                    .setMessage(R.string.dialog_details_updated)
+                    .setCancelable(false)
+                    .setPositiveButton("Proceed",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, close
+                            // current activity
+                            startActivity(new Intent(RegistrationActivity.this,MapActivity.class));
+                            finish();
+                        }
+                    })
+                    .setNegativeButton("Return",new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog,int id) {
+                            // if this button is clicked, just close
+                            // the dialog box and do nothing
+                            dialog.cancel();
+                        }
+                    });
+
+            // create alert dialog
+            AlertDialog alertDialog = alertDialogBuilder.create();
+
+            // show it
+            alertDialog.show();
+
         }
 
     }
@@ -328,4 +343,6 @@ public class RegistrationActivity extends AppCompatActivity
         //TODO: Replace this with your own logic
         return email.contains("@");
     }
+
+
 }

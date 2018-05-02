@@ -12,6 +12,7 @@ public class MedicalInformation {
     private String allergies;
 
     public MedicalInformation() {
+        preferredHospitalName = "";
     }
 
     public String getMedicalInfoId() {

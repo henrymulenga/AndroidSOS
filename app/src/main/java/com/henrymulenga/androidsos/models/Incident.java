@@ -1,7 +1,9 @@
 package com.henrymulenga.androidsos.models;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Incident {
     private String incidentId;
@@ -16,7 +18,11 @@ public class Incident {
     private boolean falseAlarm;
 
     public Incident() {
+        falseAlarm = true;
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        time = timestamp.toString();
     }
+
 
     public String getIncidentId() {
         return incidentId;
@@ -113,4 +119,17 @@ public class Incident {
                 ", falseAlarm=" + falseAlarm +
                 '}';
     }
+
+    public Map<String, Object> toMap() {
+        HashMap<String, Object> result = new HashMap<>();
+        result.put("incidentId",incidentId);
+        result.put("latitude",latitude);
+        result.put("longitude",longitude);
+        result.put("accuracy",accuracy);
+        result.put("time",time);
+        result.put("userId",userId);
+        result.put("active",active);
+        return result;
+    }
+
 }
