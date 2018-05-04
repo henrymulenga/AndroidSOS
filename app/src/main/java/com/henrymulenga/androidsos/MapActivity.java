@@ -593,6 +593,7 @@ public class MapActivity extends AppCompatActivity
             startActivity(new Intent(MapActivity.this,HospitalActivity.class));
 
         } else if (id == R.id.nav_useful) {
+            startActivity(new Intent(MapActivity.this,UsefulInformationActivity.class));
 
         }else if (id == R.id.nav_exit) {
             auth.signOut();

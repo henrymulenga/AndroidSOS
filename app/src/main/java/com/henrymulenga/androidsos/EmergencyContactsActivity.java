@@ -138,13 +138,16 @@ public class EmergencyContactsActivity extends AppCompatActivity
             startActivity(new Intent(EmergencyContactsActivity.this,RegistrationActivity.class));
             finish();
         } else if (id == R.id.nav_medical) {
-
+            startActivity(new Intent(EmergencyContactsActivity.this,MedicalInfoActivity.class));
+            finish();
         }else if (id == R.id.nav_emergency) {
             //do nothing
         } else if (id == R.id.nav_hospitals) {
-
+            startActivity(new Intent(EmergencyContactsActivity.this,HospitalActivity.class));
+            finish();
         } else if (id == R.id.nav_useful) {
-
+            startActivity(new Intent(EmergencyContactsActivity.this,UsefulInformationActivity.class));
+            finish();
         } else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity

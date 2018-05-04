@@ -161,7 +161,8 @@ public class RegistrationActivity extends AppCompatActivity
             startActivity(new Intent(RegistrationActivity.this,HospitalActivity.class));
             finish();
         } else if (id == R.id.nav_useful) {
-
+            startActivity(new Intent(RegistrationActivity.this,UsefulInformationActivity.class));
+            finish();
         } else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity

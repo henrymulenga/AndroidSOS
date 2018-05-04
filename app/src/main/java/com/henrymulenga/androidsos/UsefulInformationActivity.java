@@ -2,9 +2,12 @@ package com.henrymulenga.androidsos;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -25,33 +28,33 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.henrymulenga.androidsos.adapters.HospitalListAdapter;
-import com.henrymulenga.androidsos.models.Hospital;
+import com.henrymulenga.androidsos.adapters.UsefulNumbersListAdapter;
+import com.henrymulenga.androidsos.models.UsefulEmergencyNumber;
 import com.henrymulenga.androidsos.utilities.FirebaseDataUtilities;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class HospitalActivity extends AppCompatActivity
+public class UsefulInformationActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     // Debugging TAG for Log
-    private static final String TAG = HospitalActivity.class.getSimpleName();
+    private static final String TAG = UsefulInformationActivity.class.getSimpleName();
 
     // Firebase
     private FirebaseAuth auth;
     private FirebaseAuth.AuthStateListener authListener;
     private FirebaseUser firebaseUser;
     private FirebaseDatabase mFirebaseInstance;
-    private DatabaseReference dbHospitals;
+    private DatabaseReference dbUsefulNumbers;
     FirebaseDataUtilities firebaseDataUtilities = new FirebaseDataUtilities();
 
-    //Hospitals
-    private HospitalListAdapter arrayAdapter;
-    private List<Hospital> locations = new ArrayList<Hospital>();
-    private List<Hospital> updatedLocations = new ArrayList<Hospital>();
+    //Useful Numbers
+    private UsefulNumbersListAdapter arrayAdapter;
+    private List<UsefulEmergencyNumber> locations = new ArrayList<UsefulEmergencyNumber>();
+    private List<UsefulEmergencyNumber> updatedNumbers = new ArrayList<UsefulEmergencyNumber>();
     private ListView listView;
-    private Hospital selectedHospital;
+    private UsefulEmergencyNumber usefulEmergencyNumber;
 
 
     @Override
@@ -74,25 +77,35 @@ public class HospitalActivity extends AppCompatActivity
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                // get the hosptial selected by the user
-                selectedHospital = new Hospital();
-                selectedHospital = locations.get(position);
+                // get the usefule number selected by the user
+                usefulEmergencyNumber = new UsefulEmergencyNumber();
+                usefulEmergencyNumber = locations.get(position);
 
                 //inform user of save
                 AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
-                        HospitalActivity.this);
+                        UsefulInformationActivity.this);
                 // set title
                 alertDialogBuilder.setTitle(R.string.app_name);
                 // set dialog message
                 alertDialogBuilder
-                        .setMessage("Would you like to make " + selectedHospital.getName() + " your preferred hospital.")
+                        .setMessage("Would you like to call " + usefulEmergencyNumber.getName())
                         .setCancelable(false)
-                        .setPositiveButton("Proceed",new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,int id) {
+                        .setPositiveButton("Proceed", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
                                 // if this button is clicked, close
                                 // current activity
-                                startActivity(new Intent(HospitalActivity.this,MapActivity.class));
-                                finish();
+                                Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + usefulEmergencyNumber.getNumber()));
+                                if (ActivityCompat.checkSelfPermission(UsefulInformationActivity.this, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                                    // TODO: Consider calling
+                                    //    ActivityCompat#requestPermissions
+                                    // here to request the missing permissions, and then overriding
+                                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                    //                                          int[] grantResults)
+                                    // to handle the case where the user grants the permission. See the documentation
+                                    // for ActivityCompat#requestPermissions for more details.
+                                    return;
+                                }
+                                startActivity(intent);
                             }
                         })
                         .setNegativeButton("Return",new DialogInterface.OnClickListener() {
@@ -125,14 +138,14 @@ public class HospitalActivity extends AppCompatActivity
 
     }
 
-    private void initializeAdapter(List<Hospital> data){
+    private void initializeAdapter(List<UsefulEmergencyNumber> data){
 
         //deepcopy
         locations = new ArrayList<>();
-        locations = (ArrayList<Hospital>) data;
+        locations = (ArrayList<UsefulEmergencyNumber>) data;
 
         // reinitialize and set the list adapter
-        arrayAdapter = new HospitalListAdapter(getApplicationContext(), locations);
+        arrayAdapter = new UsefulNumbersListAdapter(getApplicationContext(), locations);
         listView.setAdapter(arrayAdapter);
         listView.setTextFilterEnabled(true);
         arrayAdapter.notifyDataSetChanged();
@@ -152,7 +165,7 @@ public class HospitalActivity extends AppCompatActivity
                 if (user == null) {
                     // firebaseUser auth state is changed - firebaseUser is null
                     // launch login activity
-                    startActivity(new Intent(HospitalActivity.this, LoginActivity.class));
+                    startActivity(new Intent(UsefulInformationActivity.this, LoginActivity.class));
                     finish();
                 }
             }
@@ -199,26 +212,26 @@ public class HospitalActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_map) {
-            startActivity(new Intent(HospitalActivity.this,MapActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this,MapActivity.class));
             finish();
         } else if (id == R.id.nav_user_info) {
-            startActivity(new Intent(HospitalActivity.this,RegistrationActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this,RegistrationActivity.class));
             finish();
         } else if (id == R.id.nav_medical) {
-            startActivity(new Intent(HospitalActivity.this,MedicalInfoActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this,MedicalInfoActivity.class));
             finish();
         } else if (id == R.id.nav_emergency) {
-            startActivity(new Intent(HospitalActivity.this,EmergencyContactsActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this,EmergencyContactsActivity.class));
             finish();
         } else if (id == R.id.nav_hospitals) {
-            //do nothing
-        } else if (id == R.id.nav_useful) {
-            startActivity(new Intent(HospitalActivity.this,UsefulInformationActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this,HospitalActivity.class));
             finish();
+        } else if (id == R.id.nav_useful) {
+            //do nothing
         } else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity
-            startActivity(new Intent(HospitalActivity.this, LoginActivity.class));
+            startActivity(new Intent(UsefulInformationActivity.this, LoginActivity.class));
             finish();
         }
 
@@ -234,21 +247,21 @@ public class HospitalActivity extends AppCompatActivity
         //load the required database
         mFirebaseInstance = firebaseDataUtilities.getDatabase();
 
-        dbHospitals = mFirebaseInstance.getReference("hospitals");
-        dbHospitals.keepSynced(true);
+        dbUsefulNumbers = mFirebaseInstance.getReference("useful-numbers");
+        dbUsefulNumbers.keepSynced(true);
 
-        dbHospitals.addValueEventListener(new ValueEventListener() {
+        dbUsefulNumbers.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 Log.v(TAG,"checkFirebaseConnection.onDataChange");
                 //clear updated
-                updatedLocations = new ArrayList<Hospital>();
+                updatedNumbers = new ArrayList<UsefulEmergencyNumber>();
                 for (DataSnapshot snapshot: dataSnapshot.getChildren()){
-                    Hospital location = snapshot.getValue(Hospital.class);
-                    System.out.println(location);
-                    updatedLocations.add(location);
+                    UsefulEmergencyNumber number = snapshot.getValue(UsefulEmergencyNumber.class);
+                    System.out.println(number);
+                    updatedNumbers.add(number);
                 }
-                initializeAdapter(updatedLocations);
+                initializeAdapter(updatedNumbers);
             }
 
             @Override

@@ -184,7 +184,8 @@ public class MedicalInfoActivity extends AppCompatActivity
             startActivity(new Intent(MedicalInfoActivity.this,HospitalActivity.class));
             finish();
         } else if (id == R.id.nav_useful) {
-
+            startActivity(new Intent(MedicalInfoActivity.this,UsefulInformationActivity.class));
+            finish();
         } else if (id == R.id.nav_exit) {
             auth.signOut();
             // launch login activity
